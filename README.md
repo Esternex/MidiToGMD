@@ -3,6 +3,9 @@
 I created this python script which takes a midi file, and converts it into a .gmd level which has the entire song with SFX triggers. This was a cool project to work on.
 
 ## How to use
+
+### Note: You must have mido python library installed (if not, run "pip install mido --break-system-packages" in your terminal)
+
 Download the file <br>
 then open your terminal and run <br>
 py (file_path) (midi_file_to_convert) (new_file_path) <br>
