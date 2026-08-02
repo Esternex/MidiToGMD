@@ -165,7 +165,7 @@ def main():
                     help="Natural duration (s) of the chosen SFX asset, for the trigger's "
                          "informational Duration field (default matches 'Piano Pop 1').")
     p.add_argument("--volume", type=float, default=2.0, help="SFX trigger volume (default 2.0)")
-    p.add_argument("--no-reverb", action="store_true", help="Disable the reverb flag (on by default)")
+    p.add_argument("--no-reverb", action="store_true", default=1, help="Disable the reverb flag (on by default)")
 
     p.add_argument("--speed", choices=SPEED_ENUM.keys(), default="fastest",
                     help="Level speed to design the level around (default: fastest/4x, "
