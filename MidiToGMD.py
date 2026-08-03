@@ -85,7 +85,7 @@ def fold_pitch(note, center, pitch_range=12):
 
 def sfx_trigger(x, y, pitch, sfx_id, volume, reverb, duration):
     reverb_val = 1 if reverb else 0
-    return (f"1,3602,2,{fmt(x)},3,{fmt(y)},155,1,36,1,392,{sfx_id},404,0,405,{pitch},"
+    return (f"1,3602,2,{fmt(x)},3,{fmt(y)},155,1,36,1,392,{sfx_id},404,0,405,{pitch-4},"
             f"406,{fmt(volume)},407,{reverb_val},421,1,422,0.5,10,0.5,490,{fmt(duration)}")
 
 
