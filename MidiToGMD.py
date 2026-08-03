@@ -71,20 +71,27 @@ def dedupe_chords(events, window_s):
 
 def split_pitch_speed(note, center, max_semitones=12):
     """Split a note's semitone offset from `center` into a Pitch value
-    (within +-max_semitones) and a Speed value (also within +-max_semitones,
-    in octave-sized steps) so the combined effective range is doubled.
+    (within +-max_semitones) and a Speed value (also within +-max_semitones)
+    so the combined effective range is doubled.
+
+    Pitch is maxed out first (clamped to +-max_semitones); any leftover
+    beyond that goes into Speed.
+
     Speed's own pitch effect isn't corrected on purpose - that's what
     provides the extra octaves."""
     diff = note - center
-    speed = 0
-    while diff > max_semitones:
-        diff -= 12
-        speed += 12
-    while diff < -max_semitones:
-        diff += 12
-        speed -= 12
+
+    if diff > max_semitones:
+        speed = diff - max_semitones
+        diff = max_semitones
+    elif diff < -max_semitones:
+        speed = diff + max_semitones
+        diff = -max_semitones
+    else:
+        speed = 0
+
     speed = max(-max_semitones, min(max_semitones, speed))
-    diff = max(-max_semitones, min(max_semitones, diff))
+
     return diff, speed
 
 
