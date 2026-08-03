@@ -156,7 +156,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("midi_path", help="Input .mid file")
     p.add_argument("output_path", help="Output .gmd file to write")
-    p.add_argument("--level-name", default="MIDI Import", help="Name stored in the .gmd (cosmetic)")
+    p.add_argument("--level-name", default=None,
+               help="Name stored in the .gmd (default: MIDI filename)")
 
     p.add_argument("--sfx-id", type=int, default=592,
                     help="SFX asset id to use for every note (default: 20642, 'Piano Pop 1'). "
@@ -200,6 +201,9 @@ def main():
 
     if args.max_seconds is not None:
         events = [e for e in events if e[0] <= args.max_seconds]
+
+    if args.level_name is None:
+        args.level_name = os.path.splitext(os.path.basename(args.midi_path))[0]
 
     events = dedupe_chords(events, args.dedupe_ms / 1000.0)
 
