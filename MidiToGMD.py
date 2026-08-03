@@ -3,6 +3,7 @@ import base64
 import gzip
 import statistics
 import sys
+import os
 
 try:
     import mido
