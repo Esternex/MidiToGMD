@@ -22,9 +22,9 @@ SPEED_ENUM = {"normal": 0, "slow": 1, "fast": 2, "faster": 3, "fastest": 4}
 
 UNITS_PER_BLOCK = 30
 
-TRIGGER_Y = 75
+TRIGGER_Y = 750
 START_X = 0
-START_Y = 1005
+START_Y = 105
 
 
 def fmt(x):
