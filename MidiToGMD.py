@@ -11,6 +11,7 @@ except ImportError:
     sys.exit("This script needs mido. Install it with:\n"
               "    pip install mido --break-system-packages")
 
+# varible
 SPEED_PRESETS_BLOCKS_PER_SEC = {
     "slow": 8.4,
     "normal": 11.2,
@@ -19,17 +20,11 @@ SPEED_PRESETS_BLOCKS_PER_SEC = {
     "fastest": 19.2,
 }
 SPEED_ENUM = {"normal": 0, "slow": 1, "fast": 2, "faster": 3, "fastest": 4}
-
 UNITS_PER_BLOCK = 30
 SFX_SPEED_KEY = 404
-
 TRIGGER_Y = 750
 START_X = 0
 START_Y = 105
-
-# Edit Song trigger (obj id 3605) with the "Stop" property enabled,
-# taken verbatim from a reference .gmd export - x/y get overridden
-# to place it at the level start.
 STOP_SONG_TRIGGER = "1,3605,2,{x},3,{y},155,1,36,1,406,1,417,1,421,1,422,0.5,10,0.5"
 
 
@@ -75,15 +70,7 @@ def dedupe_chords(events, window_s):
 
 
 def split_pitch_speed(note, center, max_semitones=12):
-    """Split a note's semitone offset from `center` into a Pitch value
-    (within +-max_semitones) and a Speed value (also within +-max_semitones)
-    so the combined effective range is doubled.
-
-    Pitch is maxed out first (clamped to +-max_semitones); any leftover
-    beyond that goes into Speed.
-
-    Speed's own pitch effect isn't corrected on purpose - that's what
-    provides the extra octaves."""
+    """ Basically it just lets you have 2 more octaves of pitch to use by slowing down note for deeper and speeding it up for higher """
     diff = note - center
 
     if diff > max_semitones:
