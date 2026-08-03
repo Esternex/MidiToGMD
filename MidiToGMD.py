@@ -115,12 +115,29 @@ HEADER_TEMPLATE = (
 def build_level_string(events, args, units_per_sec, pitch_center):
     speed_val = SPEED_ENUM[args.speed]
     header = HEADER_TEMPLATE.format(speed=speed_val)
+
     objs = [start_pos(START_X, START_Y, speed_val)]
+
     for t, note in events:
         x = args.start_x + t * units_per_sec
         pitch = fold_pitch(note, pitch_center, args.pitch_range)
-        objs.append(sfx_trigger(x, TRIGGER_Y, pitch, args.sfx_id,
-                                 args.volume, not args.no_reverb, args.sfx_duration))
+        if args.pitch_y_scale == 0:
+            y = TRIGGER_Y
+        else:
+            y = TRIGGER_Y + (note - pitch_center) * args.pitch_y_scale
+
+        objs.append(
+            sfx_trigger(
+                x,
+                y,
+                pitch,
+                args.sfx_id,
+                args.volume,
+                not args.no_reverb,
+                args.sfx_duration,
+            )
+        )
+
     return header + ";" + ";".join(objs) + ";\n"
 
 
@@ -184,6 +201,13 @@ def main():
                          "(GD's editor allows up to 12 = 2 octaves)")
     p.add_argument("--pitch-center", type=int, default=None,
                     help="MIDI note number to map to Pitch=0. Default: the median note of the song.")
+    p.add_argument(
+        "--pitch-y-scale",
+        type=float,
+        default=0.0,
+        help="Move triggers vertically by this many editor units per MIDI semitone. "
+             "0 = keep all triggers at the same Y position (default)."
+    )
 
     p.add_argument("--dedupe-ms", type=float, default=0,
                     help="Collapse notes starting within this many milliseconds of each other into "
