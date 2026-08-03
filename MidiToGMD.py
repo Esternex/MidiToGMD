@@ -24,7 +24,7 @@ UNITS_PER_BLOCK = 30
 
 TRIGGER_Y = 75
 START_X = 0
-START_Y = 105
+START_Y = 1005
 
 
 def fmt(x):
