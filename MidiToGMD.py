@@ -27,6 +27,11 @@ TRIGGER_Y = 750
 START_X = 0
 START_Y = 105
 
+# Edit Song trigger (obj id 3605) with the "Stop" property enabled,
+# taken verbatim from a reference .gmd export - x/y get overridden
+# to place it at the level start.
+STOP_SONG_TRIGGER = "1,3605,2,{x},3,{y},155,1,36,1,406,1,417,1,421,1,422,0.5,10,0.5"
+
 
 def fmt(x):
     if isinstance(x, float):
@@ -102,6 +107,10 @@ def sfx_trigger(x, y, pitch, speed, sfx_id, volume, reverb, duration):
             f"406,{fmt(volume)},407,{reverb_val},421,1,422,0.5,10,0.5,490,{fmt(duration)}")
 
 
+def stop_song_trigger(x, y):
+    return STOP_SONG_TRIGGER.format(x=fmt(x), y=fmt(y))
+
+
 def start_pos(x, y, speed_enum_val):
     return (f"1,31,2,{fmt(x)},3,{fmt(y)},155,1,36,1,kA2,0,kA3,0,kA8,0,kA4,{speed_enum_val},kA9,1,kA10,0,"
             "kA22,0,kA23,0,kA24,0,kA27,1,kA40,1,kA48,1,kA41,1,kA42,1,kA28,0,kA29,0,kA31,1,kA32,1,"
@@ -129,7 +138,10 @@ def build_level_string(events, args, units_per_sec, pitch_center):
     speed_val = SPEED_ENUM[args.speed]
     header = HEADER_TEMPLATE.format(speed=speed_val)
 
-    objs = [start_pos(START_X, START_Y, speed_val)]
+    objs = [
+        start_pos(START_X, START_Y, speed_val),
+        stop_song_trigger(START_X, START_Y),
+    ]
 
     for t, note in events:
         x = args.start_x + t * units_per_sec
