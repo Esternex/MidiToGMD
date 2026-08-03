@@ -21,6 +21,7 @@ SPEED_PRESETS_BLOCKS_PER_SEC = {
 SPEED_ENUM = {"normal": 0, "slow": 1, "fast": 2, "faster": 3, "fastest": 4}
 
 UNITS_PER_BLOCK = 30
+SFX_SPEED_KEY = 404
 
 TRIGGER_Y = 750
 START_X = 0
@@ -28,7 +29,6 @@ START_Y = 105
 
 
 def fmt(x):
-    """Format a number the way GD level strings expect (no trailing zeros)."""
     if isinstance(x, float):
         s = f"{x:.3f}".rstrip('0').rstrip('.')
         return s if s else "0"
@@ -36,8 +36,6 @@ def fmt(x):
 
 
 def extract_notes(midi_path):
-    """Return a sorted list of (time_seconds, midi_note) for every note-on
-    event in the file, honoring tempo changes anywhere in the file."""
     mid = mido.MidiFile(midi_path)
     events = []
     tempo = 500000
@@ -53,9 +51,6 @@ def extract_notes(midi_path):
 
 
 def dedupe_chords(events, window_s):
-    """Collapse notes that start within `window_s` of each other into a
-    single event, keeping the highest (most audible) note. window_s <= 0
-    disables this and keeps every note as its own trigger."""
     if window_s <= 0:
         return events
     out = []
@@ -74,19 +69,29 @@ def dedupe_chords(events, window_s):
     return out
 
 
-def fold_pitch(note, center, pitch_range=12):
-    """Fold a MIDI note into GD's [-pitch_range, +pitch_range) window
-    around `center`, preserving pitch class via octave wrapping instead
-    of clipping."""
-    span = pitch_range * 2
+def split_pitch_speed(note, center, max_semitones=12):
+    """Split a note's semitone offset from `center` into a Pitch value
+    (within +-max_semitones) and a Speed value (also within +-max_semitones,
+    in octave-sized steps) so the combined effective range is doubled.
+    Speed's own pitch effect isn't corrected on purpose - that's what
+    provides the extra octaves."""
     diff = note - center
-    diff = ((diff + pitch_range) % span) - pitch_range
-    return diff
+    speed = 0
+    while diff > max_semitones:
+        diff -= 12
+        speed += 12
+    while diff < -max_semitones:
+        diff += 12
+        speed -= 12
+    speed = max(-max_semitones, min(max_semitones, speed))
+    diff = max(-max_semitones, min(max_semitones, diff))
+    return diff, speed
 
 
-def sfx_trigger(x, y, pitch, sfx_id, volume, reverb, duration):
+def sfx_trigger(x, y, pitch, speed, sfx_id, volume, reverb, duration):
     reverb_val = 1 if reverb else 0
-    return (f"1,3602,2,{fmt(x)},3,{fmt(y)},155,1,36,1,392,{sfx_id},404,0,405,{pitch-1},"
+    return (f"1,3602,2,{fmt(x)},3,{fmt(y)},155,1,36,1,392,{sfx_id},"
+            f"{SFX_SPEED_KEY},{fmt(speed)},405,{pitch-1},"
             f"406,{fmt(volume)},407,{reverb_val},421,1,422,0.5,10,0.5,490,{fmt(duration)}")
 
 
@@ -121,17 +126,18 @@ def build_level_string(events, args, units_per_sec, pitch_center):
 
     for t, note in events:
         x = args.start_x + t * units_per_sec
-        pitch = fold_pitch(note, pitch_center, args.pitch_range)
+        pitch, speed = split_pitch_speed(note, pitch_center, args.pitch_range)
         if args.pitch_y_scale == 0:
-            y = TRIGGER_Y
+            y = args.trigger_y
         else:
-            y = TRIGGER_Y + (note - pitch_center) * args.pitch_y_scale
+            y = args.trigger_y + (note - pitch_center) * args.pitch_y_scale
 
         objs.append(
             sfx_trigger(
                 x,
                 y,
                 pitch,
+                speed,
                 args.sfx_id,
                 args.volume,
                 not args.no_reverb,
@@ -163,10 +169,9 @@ def wrap_gmd(level_name: str, k4_string: str) -> str:
         '<k>k50</k><i>47</i>'
         '<k>k47</k><t />'
         '<k>k48</k><i>1</i>'
-        f'<k>k105</k><s>{"__parent_dict_placeholder__"}</s>'
+        f'<k>k105</k><s>{592}</s>'
         '</dict></plist>'
-    ).replace('<k>k105</k><s>__parent_dict_placeholder__</s>',
-              f'<k>k105</k><s>{592}</s>')
+    )
 
 
 def main():
@@ -175,14 +180,14 @@ def main():
     p.add_argument("midi_path", help="Input .mid file")
     p.add_argument("output_path", help="Output .gmd file to write")
     p.add_argument("--level-name", default=None,
-               help="Name stored in the .gmd (default: MIDI filename)")
+                    help="Name stored in the .gmd (default: MIDI filename)")
 
     p.add_argument("--sfx-id", type=int, default=592,
-                    help="SFX asset id to use for every note (default: 20642, 'Piano Pop 1'). "
+                    help="SFX asset id to use for every note (default: 592). "
                          "Must already be downloaded in-game / referenced by the level.")
     p.add_argument("--sfx-duration", type=float, default=3.198,
                     help="Natural duration (s) of the chosen SFX asset, for the trigger's "
-                         "informational Duration field (default matches 'Piano Pop 1').")
+                         "informational Duration field.")
     p.add_argument("--volume", type=float, default=2.0, help="SFX trigger volume (default 2.0)")
     p.add_argument("--no-reverb", action="store_true", default=1, help="Disable the reverb flag (on by default)")
 
@@ -198,16 +203,18 @@ def main():
                          "after the spawn point)")
 
     p.add_argument("--pitch-range", type=int, default=12,
-                    help="Max semitone offset the SFX trigger's Pitch will use in either direction "
-                         "(GD's editor allows up to 12 = 2 octaves)")
+                    help="Max semitone offset used per field (Pitch and Speed each get up to "
+                         "this much, so the effective total range is +-2x this value).")
     p.add_argument("--pitch-center", type=int, default=None,
                     help="MIDI note number to map to Pitch=0. Default: the median note of the song.")
+    p.add_argument("--trigger-y", type=float, default=TRIGGER_Y,
+                    help=f"Base Y position (editor units) for every SFX trigger (default {TRIGGER_Y}).")
     p.add_argument(
         "--pitch-y-scale",
         type=float,
         default=0.0,
-        help="Move triggers vertically by this many editor units per MIDI semitone. "
-             "0 = keep all triggers at the same Y position (default)."
+        help="Move triggers vertically by this many editor units per MIDI semitone, relative "
+             "to --trigger-y. 0 = keep all triggers at --trigger-y (default)."
     )
 
     p.add_argument("--dedupe-ms", type=float, default=0,
@@ -215,7 +222,7 @@ def main():
                          "one trigger (keeping the highest note). 0 = keep every note (default).")
 
     p.add_argument("--max-seconds", type=float, default=None,
-                    help="Only include notes up to this time — useful for generating a short "
+                    help="Only include notes up to this time - useful for generating a short "
                          "preview to test in-editor before committing to the full song.")
 
     args = p.parse_args()
@@ -251,6 +258,7 @@ def main():
     print(f"  pitch center (MIDI note): {pitch_center}  "
           f"(range in song: {min(n for _,n in events)}-{max(n for _,n in events)})")
     print(f"  speed: {args.speed} ({units_per_sec:.1f} units/sec)")
+    print(f"  trigger y: {args.trigger_y}")
     print(f"  song duration used: {events[-1][0]:.2f}s -> final trigger x = "
           f"{args.start_x + events[-1][0]*units_per_sec:.1f}")
 
